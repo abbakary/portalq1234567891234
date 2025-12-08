@@ -46,6 +46,21 @@ from django.views.generic import View
 logger = logging.getLogger(__name__)
 
 
+def is_system_superuser(user):
+    """
+    Check if user is a system-wide superuser (superuser with no branch assigned).
+    System superusers can access all branches and data.
+    Branch-scoped superusers (with a branch assigned) can only access their branch.
+
+    Returns:
+        bool: True if user is superuser AND has no branch assigned
+    """
+    if not user.is_superuser:
+        return False
+    user_branch = getattr(user, 'profile', None) and user.profile.branch
+    return user_branch is None
+
+
 def _mark_overdue_orders():
     """
     Mark orders as overdue after 9 calendar hours elapsed.
@@ -5174,19 +5189,37 @@ def brand_list(request: HttpRequest):
 @login_required
 @is_manager
 def branches_list(request: HttpRequest):
-    """List all branches with management options"""
+    """List all branches with management options and hierarchy"""
     user_branch = get_user_branch(request.user)
 
-    if request.user.is_superuser:
-        # Superuser sees all main branches and can manage everything
-        branches = Branch.objects.filter(parent__isnull=True).order_by('name').prefetch_related('sub_branches')
+    if is_system_superuser(request.user):
+        # System superuser (no branch assigned) sees all main branches
+        main_branches = Branch.objects.filter(parent__isnull=True).order_by('name').prefetch_related('sub_branches')
+        branches = main_branches
+        user_can_create_branches = True
+        show_all_branches = True
     elif user_branch:
-        # Non-superuser staff sees only their assigned branch and its sub-branches
-        branches = [user_branch]
+        if user_branch.is_main_branch():
+            # Branch superuser/admin sees their main branch and all sub-branches
+            branches = [user_branch]
+            user_can_create_branches = True
+            show_all_branches = False
+        else:
+            # Sub-branch user sees only their own branch
+            branches = [user_branch]
+            user_can_create_branches = False
+            show_all_branches = False
     else:
         branches = []
+        user_can_create_branches = False
+        show_all_branches = False
 
-    return render(request, 'tracker/branch_list.html', {'branches': branches, 'user_branch': user_branch})
+    return render(request, 'tracker/branch_list.html', {
+        'branches': branches,
+        'user_branch': user_branch,
+        'user_can_create_branches': user_can_create_branches,
+        'show_all_branches': show_all_branches,
+    })
 
 @login_required
 @is_manager
@@ -5194,10 +5227,6 @@ def api_create_branch(request: HttpRequest):
     """Create a new Branch via JSON API"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
-
-    # Only superuser can create branches
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Only superusers can create branches'}, status=403)
 
     try:
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}
@@ -5214,13 +5243,32 @@ def api_create_branch(request: HttpRequest):
             return JsonResponse({'success': False, 'error': 'A branch with this code already exists'}, status=400)
 
         parent = None
+        user_branch = get_user_branch(request.user)
+
+        # Permission check for branch creation
         if parent_id:
+            # Creating a sub-branch
             try:
                 parent = Branch.objects.get(pk=parent_id)
+
+                # Check permissions: only system superuser or branch owner can create sub-branches
+                if is_system_superuser(request.user):
+                    # System superuser can create under any main branch
+                    pass
+                elif user_branch and user_branch.is_main_branch() and user_branch.id == parent.id:
+                    # Branch owner can create sub-branches under their own branch
+                    pass
+                else:
+                    return JsonResponse({'success': False, 'error': 'You can only create sub-branches under your own branch'}, status=403)
+
                 if parent.parent is not None:
                     return JsonResponse({'success': False, 'error': 'Cannot create sub-branch of a sub-branch'}, status=400)
             except Branch.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Parent branch not found'}, status=400)
+        else:
+            # Creating a main branch - only system superuser
+            if not is_system_superuser(request.user):
+                return JsonResponse({'success': False, 'error': 'Only system superusers can create main branches'}, status=403)
 
         b = Branch.objects.create(name=name, code=code, region=region, parent=parent, is_active=True)
         return JsonResponse({
@@ -5250,8 +5298,21 @@ def api_update_branch(request: HttpRequest, pk: int):
         branch = get_object_or_404(Branch, pk=pk)
         user_branch = get_user_branch(request.user)
 
-        # Check permissions: superuser can edit any branch, non-superuser can only edit their own and sub-branches
-        if not request.user.is_superuser and user_branch and branch.pk != user_branch.pk and branch.parent != user_branch:
+        # Permission check: who can edit this branch?
+        can_edit = False
+        if is_system_superuser(request.user):
+            # System superuser can edit any branch
+            can_edit = True
+        elif user_branch:
+            # Branch-assigned user can edit their branch and sub-branches
+            if user_branch.is_main_branch():
+                # Main branch user can edit their main branch and all sub-branches
+                can_edit = (branch.pk == user_branch.pk) or (branch.parent == user_branch)
+            else:
+                # Sub-branch user can only edit their own branch
+                can_edit = (branch.pk == user_branch.pk)
+
+        if not can_edit:
             return JsonResponse({'success': False, 'error': 'You do not have permission to edit this branch'}, status=403)
 
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}
@@ -5581,8 +5642,9 @@ def users_list(request: HttpRequest):
         qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q))
 
     # Build branch filter based on user role and branch assignment
-    if request.user.is_superuser:
-        # Superuser can filter by branch parameter or see all
+    selected_branch = None
+    if is_system_superuser(request.user):
+        # System superuser (no branch) can filter by branch parameter or see all
         if branch_param:
             if branch_param.isdigit():
                 selected_branch = Branch.objects.filter(pk=int(branch_param)).first()
@@ -5595,8 +5657,8 @@ def users_list(request: HttpRequest):
                 branch_ids.extend(selected_branch.sub_branches.values_list('id', flat=True))
                 qs = qs.filter(profile__branch_id__in=branch_ids)
     elif user_branch:
-        # Non-superuser staff with assigned branch sees their branch and sub-branches
-        if user_branch.parent is None:
+        # Branch-assigned user (superuser or staff) sees their branch and sub-branches
+        if user_branch.is_main_branch():
             # User is from main branch, include users from main and all subs
             branch_ids = [user_branch.id]
             branch_ids.extend(user_branch.sub_branches.values_list('id', flat=True))
@@ -5609,24 +5671,33 @@ def users_list(request: HttpRequest):
         qs = qs.none()
 
     # Get available branches for filter dropdown
-    if request.user.is_superuser:
-        branches = list(Branch.objects.filter(parent__isnull=True, is_active=True).order_by('name').values_list('name', flat=True))
-    elif user_branch and user_branch.parent is None:
-        # Main branch user can filter by their main branch or sub-branches
-        branch_names = [user_branch.name]
-        branch_names.extend(user_branch.sub_branches.values_list('name', flat=True).order_by('name'))
-        branches = branch_names
+    if is_system_superuser(request.user):
+        branches = list(Branch.objects.filter(parent__isnull=True, is_active=True).order_by('name').values_list('id', 'name'))
+    elif user_branch:
+        if user_branch.is_main_branch():
+            # Main branch user can filter by their main branch or sub-branches
+            branches = [(user_branch.id, user_branch.name)]
+            branches.extend(user_branch.sub_branches.values_list('id', 'name').order_by('name'))
+        else:
+            branches = [(user_branch.id, user_branch.name)]
     else:
-        branches = [user_branch.name] if user_branch else []
+        branches = []
 
-    return render(request, 'tracker/users_list.html', { 'users': qs[:100], 'q': q, 'branches': branches, 'selected_branch': branch_param, 'user_branch': user_branch })
+    return render(request, 'tracker/users_list.html', {
+        'users': qs[:100],
+        'q': q,
+        'branches': branches,
+        'selected_branch': branch_param,
+        'selected_branch_obj': selected_branch,
+        'user_branch': user_branch,
+    })
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def user_create(request: HttpRequest):
     from .forms import AdminUserCreateForm
     if request.method == 'POST':
-        form = AdminUserCreateForm(request.POST)
+        form = AdminUserCreateForm(request.POST, creator=request.user)
         if form.is_valid():
             new_user = form.save()
             add_audit_log(request.user, 'user_create', f'Created user {new_user.username}')
@@ -5635,7 +5706,7 @@ def user_create(request: HttpRequest):
         else:
             messages.error(request, 'Please correct errors and try again')
     else:
-        form = AdminUserCreateForm()
+        form = AdminUserCreateForm(creator=request.user)
     return render(request, 'tracker/user_create.html', { 'form': form })
 
 @login_required
@@ -5644,7 +5715,7 @@ def user_edit(request: HttpRequest, pk: int):
     from .forms import AdminUserForm
     u = get_object_or_404(User, pk=pk)
     if request.method == 'POST':
-        form = AdminUserForm(request.POST, instance=u)
+        form = AdminUserForm(request.POST, instance=u, editor=request.user)
         if form.is_valid():
             updated_user = form.save()
             add_audit_log(request.user, 'user_update', f'Updated user {updated_user.username}')
@@ -5653,7 +5724,7 @@ def user_edit(request: HttpRequest, pk: int):
         else:
             messages.error(request, 'Please correct errors and try again')
     else:
-        form = AdminUserForm(instance=u)
+        form = AdminUserForm(instance=u, editor=request.user)
     return render(request, 'tracker/user_edit.html', { 'form': form, 'user_obj': u })
 
 @login_required

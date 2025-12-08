@@ -1,5 +1,6 @@
 {% extends 'tracker/base.html' %}
 {% load date_filters %}
+{% load custom_filters %}
 {% load static %}
 
 {% block title %}User Management{% endblock %}
@@ -258,7 +259,11 @@
     <div class="header-title">Users</div>
     <div class="header-subtitle">
       {% if user_branch %}
-        Managing users for <strong>{{ user_branch.name }}</strong>
+        {% if user_branch.is_main_branch %}
+          Managing users for main branch <strong>{{ user_branch.name }}</strong> and its sub-branches
+        {% else %}
+          Managing users for sub-branch <strong>{{ user_branch.name }}</strong>
+        {% endif %}
       {% else %}
         All users across all branches
       {% endif %}
@@ -277,11 +282,11 @@
       <button type="submit" class="btn btn-outline-primary">Search</button>
     </form>
 
-    {% if not user_branch %}
+    {% if branches %}
       <select name="branch" class="form-select branch-filter" onchange="window.location.href='?branch=' + this.value">
         <option value="">All Branches</option>
-        {% for branch in branches %}
-          <option value="{{ branch }}" {% if selected_branch == branch %}selected{% endif %}>{{ branch }}</option>
+        {% for branch_id, branch_name in branches %}
+          <option value="{{ branch_id }}" {% if selected_branch == branch_id %}selected{% endif %}>{{ branch_name }}</option>
         {% endfor %}
       </select>
     {% endif %}
@@ -322,6 +327,14 @@
                   <span class="role-badge role-staff">Staff</span>
                 {% endif %}
 
+                {% with u.profile.role as user_role %}
+                  {% if user_role %}
+                    <span class="role-badge" style="background: #6c63ff; color: white;">
+                      {{ user_role|upper|replace:"_: " }}
+                    </span>
+                  {% endif %}
+                {% endwith %}
+
                 {% if u.groups.all %}
                   {% for group in u.groups.all %}
                     <span class="role-badge role-manager">{{ group.name }}</span>
@@ -338,8 +351,13 @@
               {% with u.profile.branch as branch %}
                 {% if branch %}
                   <div class="user-branch">
-                    <i class="fa fa-map-marker user-branch-icon"></i>
-                    {{ branch.name }}
+                    {% if branch.parent %}
+                      <i class="fa fa-arrow-right user-branch-icon" style="color: #0066cc;"></i>
+                      <strong>{{ branch.parent.name }}</strong> → {{ branch.name }}
+                    {% else %}
+                      <i class="fa fa-map-marker user-branch-icon"></i>
+                      {{ branch.name }}
+                    {% endif %}
                     {% if branch.region %}
                       <span style="color: #999;">— {{ branch.region }}</span>
                     {% endif %}
