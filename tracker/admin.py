@@ -2,11 +2,12 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
 from .models import Customer, Vehicle, Order, InventoryItem, Branch, ServiceType, ServiceAddon, LabourCode, DelayReasonCategory, DelayReason, Salesperson, Invoice, InvoiceLineItem, Profile
 
 class ProfileInline(admin.StackedInline):
     model = Profile
-    fields = ('branch', 'photo')
+    fields = ('branch', 'role', 'photo')
     extra = 0
 
 class CustomUserAdmin(BaseUserAdmin):
