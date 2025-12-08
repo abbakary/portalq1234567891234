@@ -5175,8 +5175,18 @@ def brand_list(request: HttpRequest):
 @is_manager
 def branches_list(request: HttpRequest):
     """List all branches with management options"""
-    branches = Branch.objects.all().order_by('name')
-    return render(request, 'tracker/branch_list.html', {'branches': branches})
+    user_branch = get_user_branch(request.user)
+
+    if request.user.is_superuser:
+        # Superuser sees all main branches and can manage everything
+        branches = Branch.objects.filter(parent__isnull=True).order_by('name').prefetch_related('sub_branches')
+    elif user_branch:
+        # Non-superuser staff sees only their assigned branch and its sub-branches
+        branches = [user_branch]
+    else:
+        branches = []
+
+    return render(request, 'tracker/branch_list.html', {'branches': branches, 'user_branch': user_branch})
 
 @login_required
 @is_manager
