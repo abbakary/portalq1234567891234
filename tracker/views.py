@@ -46,6 +46,21 @@ from django.views.generic import View
 logger = logging.getLogger(__name__)
 
 
+def is_system_superuser(user):
+    """
+    Check if user is a system-wide superuser (superuser with no branch assigned).
+    System superusers can access all branches and data.
+    Branch-scoped superusers (with a branch assigned) can only access their branch.
+
+    Returns:
+        bool: True if user is superuser AND has no branch assigned
+    """
+    if not user.is_superuser:
+        return False
+    user_branch = getattr(user, 'profile', None) and user.profile.branch
+    return user_branch is None
+
+
 def _mark_overdue_orders():
     """
     Mark orders as overdue after 9 calendar hours elapsed.
