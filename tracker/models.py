@@ -539,13 +539,63 @@ class InventoryAdjustment(models.Model):
 
 
 class Profile(models.Model):
+    """User profile with branch assignment and role tracking."""
+    ROLE_CHOICES = [
+        ('superuser', 'System Superuser'),
+        ('main_branch_admin', 'Main Branch Administrator'),
+        ('sub_branch_admin', 'Sub-Branch Administrator'),
+        ('staff', 'Staff'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='profiles')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='staff', help_text='User role within their assigned branch')
     photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['branch'], name='idx_profile_branch'),
+            models.Index(fields=['role'], name='idx_profile_role'),
+        ]
+
     def __str__(self) -> str:
         return f"Profile of {self.user.username}"
+
+    def is_main_branch_user(self) -> bool:
+        """Check if user is assigned to a main branch."""
+        return self.branch and self.branch.is_main_branch()
+
+    def is_sub_branch_user(self) -> bool:
+        """Check if user is assigned to a sub-branch."""
+        return self.branch and self.branch.is_sub_branch()
+
+    def can_manage_branch(self) -> bool:
+        """Check if user can manage their assigned branch."""
+        if self.user.is_superuser:
+            return True
+        return self.role in ['main_branch_admin', 'sub_branch_admin']
+
+    def can_create_sub_branches(self) -> bool:
+        """Check if user can create sub-branches (only main branch superuser)."""
+        if not self.is_main_branch_user():
+            return False
+        return self.user.is_superuser and self.role == 'main_branch_admin'
+
+    def get_accessible_branches(self):
+        """Get all branches this user can access/see data from."""
+        if self.user.is_superuser:
+            return Branch.objects.all()
+        elif self.branch:
+            if self.is_main_branch_user():
+                # Main branch user can see main branch and all its sub-branches
+                return Branch.objects.filter(
+                    Q(id=self.branch.id) | Q(parent=self.branch)
+                )
+            else:
+                # Sub-branch user can only see their own branch
+                return Branch.objects.filter(id=self.branch.id)
+        return Branch.objects.none()
 
 
 class CustomerNote(models.Model):
