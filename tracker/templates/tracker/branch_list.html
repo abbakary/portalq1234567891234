@@ -284,6 +284,18 @@
           </div>
 
           <div class="branch-details">
+            {% if branch.parent %}
+              <div class="branch-detail">
+                <i class="fa fa-sitemap branch-detail-icon"></i>
+                <span><strong>Sub-branch of:</strong> {{ branch.parent.name }}</span>
+              </div>
+            {% else %}
+              <div class="branch-detail">
+                <i class="fa fa-building branch-detail-icon"></i>
+                <span><strong>Main Branch</strong></span>
+              </div>
+            {% endif %}
+
             {% if branch.region %}
               <div class="branch-detail">
                 <i class="fa fa-map-marker branch-detail-icon"></i>
@@ -306,6 +318,12 @@
               <div class="branch-stat-value">{{ branch.customers.count }}</div>
               <div class="branch-stat-label">Customers</div>
             </div>
+            {% if branch.sub_branches.count > 0 %}
+            <div class="branch-stat">
+              <div class="branch-stat-value">{{ branch.sub_branches.count }}</div>
+              <div class="branch-stat-label">Sub-Branches</div>
+            </div>
+            {% endif %}
           </div>
 
           <div style="margin-bottom: 16px;">
@@ -323,8 +341,74 @@
                     onclick="editBranch({{ branch.id }}, '{{ branch.name }}', '{{ branch.code }}', '{{ branch.region|default:'' }}', {{ branch.is_active|yesno:'true,false' }})">
               <i class="fa fa-edit"></i> Edit
             </button>
+            {% if user_can_create_branches and branch.parent == None %}
+            <button type="button" class="action-btn"
+                    onclick="addSubBranch({{ branch.id }}, '{{ branch.name }}')">
+              <i class="fa fa-plus"></i> Sub-Branch
+            </button>
+            {% endif %}
           </div>
         </div>
+
+        {% if branch.sub_branches.all %}
+          {% for sub_branch in branch.sub_branches.all %}
+            <div class="branch-card" style="margin-left: 20px; border-left: 3px solid #0066cc;">
+              <div class="branch-card-header">
+                <div class="branch-name">
+                  <i class="fa fa-arrow-right" style="color: #0066cc; margin-right: 8px;"></i>{{ sub_branch.name }}
+                </div>
+                <span class="branch-code">{{ sub_branch.code }}</span>
+              </div>
+
+              <div class="branch-details">
+                <div class="branch-detail">
+                  <i class="fa fa-sitemap branch-detail-icon"></i>
+                  <span><strong>Sub-branch of:</strong> {{ branch.name }}</span>
+                </div>
+
+                {% if sub_branch.region %}
+                  <div class="branch-detail">
+                    <i class="fa fa-map-marker branch-detail-icon"></i>
+                    <span>{{ sub_branch.region }}</span>
+                  </div>
+                {% endif %}
+
+                <div class="branch-detail">
+                  <i class="fa fa-calendar branch-detail-icon"></i>
+                  <span>Created: {{ sub_branch.created_at|date:"M d, Y" }}</span>
+                </div>
+              </div>
+
+              <div class="branch-stats">
+                <div class="branch-stat">
+                  <div class="branch-stat-value">{{ sub_branch.profiles.count }}</div>
+                  <div class="branch-stat-label">Users</div>
+                </div>
+                <div class="branch-stat">
+                  <div class="branch-stat-value">{{ sub_branch.customers.count }}</div>
+                  <div class="branch-stat-label">Customers</div>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 16px;">
+                <span class="branch-status {% if sub_branch.is_active %}branch-status-active{% else %}branch-status-inactive{% endif %}">
+                  {% if sub_branch.is_active %}
+                    <i class="fa fa-check-circle" style="margin-right: 4px;"></i>Active
+                  {% else %}
+                    <i class="fa fa-circle-o" style="margin-right: 4px;"></i>Inactive
+                  {% endif %}
+                </span>
+              </div>
+
+              <div class="branch-actions">
+                <button type="button" class="action-btn"
+                        onclick="editBranch({{ sub_branch.id }}, '{{ sub_branch.name }}', '{{ sub_branch.code }}', '{{ sub_branch.region|default:'' }}', {{ sub_branch.is_active|yesno:'true,false' }})">
+                  <i class="fa fa-edit"></i> Edit
+                </button>
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
       {% endfor %}
     </div>
   {% else %}
