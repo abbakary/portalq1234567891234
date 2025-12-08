@@ -5617,6 +5617,7 @@ def users_list(request: HttpRequest):
         qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q))
 
     # Build branch filter based on user role and branch assignment
+    selected_branch = None
     if request.user.is_superuser:
         # Superuser can filter by branch parameter or see all
         if branch_param:
@@ -5632,7 +5633,7 @@ def users_list(request: HttpRequest):
                 qs = qs.filter(profile__branch_id__in=branch_ids)
     elif user_branch:
         # Non-superuser staff with assigned branch sees their branch and sub-branches
-        if user_branch.parent is None:
+        if user_branch.is_main_branch():
             # User is from main branch, include users from main and all subs
             branch_ids = [user_branch.id]
             branch_ids.extend(user_branch.sub_branches.values_list('id', flat=True))
@@ -5646,16 +5647,25 @@ def users_list(request: HttpRequest):
 
     # Get available branches for filter dropdown
     if request.user.is_superuser:
-        branches = list(Branch.objects.filter(parent__isnull=True, is_active=True).order_by('name').values_list('name', flat=True))
-    elif user_branch and user_branch.parent is None:
-        # Main branch user can filter by their main branch or sub-branches
-        branch_names = [user_branch.name]
-        branch_names.extend(user_branch.sub_branches.values_list('name', flat=True).order_by('name'))
-        branches = branch_names
+        branches = list(Branch.objects.filter(parent__isnull=True, is_active=True).order_by('name').values_list('id', 'name'))
+    elif user_branch:
+        if user_branch.is_main_branch():
+            # Main branch user can filter by their main branch or sub-branches
+            branches = [(user_branch.id, user_branch.name)]
+            branches.extend(user_branch.sub_branches.values_list('id', 'name').order_by('name'))
+        else:
+            branches = [(user_branch.id, user_branch.name)]
     else:
-        branches = [user_branch.name] if user_branch else []
+        branches = []
 
-    return render(request, 'tracker/users_list.html', { 'users': qs[:100], 'q': q, 'branches': branches, 'selected_branch': branch_param, 'user_branch': user_branch })
+    return render(request, 'tracker/users_list.html', {
+        'users': qs[:100],
+        'q': q,
+        'branches': branches,
+        'selected_branch': branch_param,
+        'selected_branch_obj': selected_branch,
+        'user_branch': user_branch,
+    })
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
