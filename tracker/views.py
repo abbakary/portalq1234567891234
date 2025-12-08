@@ -5633,8 +5633,8 @@ def users_list(request: HttpRequest):
 
     # Build branch filter based on user role and branch assignment
     selected_branch = None
-    if request.user.is_superuser:
-        # Superuser can filter by branch parameter or see all
+    if is_system_superuser(request.user):
+        # System superuser (no branch) can filter by branch parameter or see all
         if branch_param:
             if branch_param.isdigit():
                 selected_branch = Branch.objects.filter(pk=int(branch_param)).first()
@@ -5647,7 +5647,7 @@ def users_list(request: HttpRequest):
                 branch_ids.extend(selected_branch.sub_branches.values_list('id', flat=True))
                 qs = qs.filter(profile__branch_id__in=branch_ids)
     elif user_branch:
-        # Non-superuser staff with assigned branch sees their branch and sub-branches
+        # Branch-assigned user (superuser or staff) sees their branch and sub-branches
         if user_branch.is_main_branch():
             # User is from main branch, include users from main and all subs
             branch_ids = [user_branch.id]
@@ -5661,7 +5661,7 @@ def users_list(request: HttpRequest):
         qs = qs.none()
 
     # Get available branches for filter dropdown
-    if request.user.is_superuser:
+    if is_system_superuser(request.user):
         branches = list(Branch.objects.filter(parent__isnull=True, is_active=True).order_by('name').values_list('id', 'name'))
     elif user_branch:
         if user_branch.is_main_branch():
