@@ -1355,7 +1355,7 @@ class InvoicePaymentForm(forms.ModelForm):
 class LabourCodeForm(forms.ModelForm):
     class Meta:
         model = LabourCode
-        fields = ['code', 'description', 'category', 'is_active']
+        fields = ['code', 'description', 'category', 'item_name', 'brand', 'quantity', 'tire_type', 'is_active']
         widgets = {
             'code': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -1367,10 +1367,36 @@ class LabourCodeForm(forms.ModelForm):
                 'placeholder': 'Enter description (e.g., OIL SERVICE)',
                 'required': True
             }),
-            'category': forms.TextInput(attrs={
+            'category': forms.Select(attrs={
+                'class': 'form-select',
+            }, choices=[
+                ('', 'Select category'),
+                ('labour', 'Labour'),
+                ('service', 'Service'),
+                ('tyre service', 'Tyre Service'),
+                ('sales', 'Sales'),
+                ('unspecified', 'Unspecified'),
+            ]),
+            'item_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter category (labour, service, tyre service, sales, or unspecified)',
-                'required': True
+                'placeholder': 'Item name (e.g., Tire, Oil Filter) - optional',
+                'required': False
+            }),
+            'brand': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Brand name (e.g., Michelin) - optional',
+                'required': False
+            }),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Default quantity - optional',
+                'min': 1,
+                'required': False
+            }),
+            'tire_type': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Tire type (e.g., New, Used) - optional',
+                'required': False
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
