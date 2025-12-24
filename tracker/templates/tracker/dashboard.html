@@ -1278,10 +1278,15 @@
           }
         });
       }
-    }catch(e){
+    } catch(e) {
       console.error('Error creating order status chart:', e);
     }
-  });
+  }
+
+  // Call the initialization function if Chart.js is already loaded
+  if (typeof Chart !== 'undefined') {
+    window.initializeDashboardCharts();
+  }
 })();
 </script>
 {% endblock %}
