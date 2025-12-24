@@ -780,6 +780,99 @@
                 });
               }
 
+              // Labour Code Lookup Functionality
+              const labourCodeSearch = document.getElementById('labourCodeSearch');
+              const labourCodeResults = document.getElementById('labourCodeResults');
+              const labourCodeSelected = document.getElementById('labourCodeSelected');
+              const labourCodeId = document.getElementById('labourCodeId');
+              const clearLabourCodeBtn = document.getElementById('clearLabourCodeBtn');
+
+              // Debounce function for search
+              function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                  const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                  };
+                  clearTimeout(timeout);
+                  timeout = setTimeout(later, wait);
+                };
+              }
+
+              // Search labour codes
+              const searchLabourCodes = debounce(function() {
+                const searchTerm = labourCodeSearch.value.trim();
+                if (!searchTerm || searchTerm.length < 2) {
+                  labourCodeResults.style.display = 'none';
+                  return;
+                }
+
+                fetch(`/tracker/api/orders/lookup-labour-code/?item_name=${encodeURIComponent(searchTerm)}`, {
+                  headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                  if (data.success && data.labour_codes && data.labour_codes.length > 0) {
+                    labourCodeResults.innerHTML = '';
+                    data.labour_codes.forEach(lc => {
+                      const btn = document.createElement('button');
+                      btn.type = 'button';
+                      btn.className = 'btn btn-outline-primary btn-sm w-100 mb-2 text-start';
+                      btn.innerHTML = `
+                        <strong>${lc.item_name || lc.description}</strong><br>
+                        <small>Code: ${lc.code} • Brand: ${lc.brand || 'N/A'}</small>
+                      `;
+                      btn.onclick = function(e) {
+                        e.preventDefault();
+                        selectLabourCode(lc);
+                      };
+                      labourCodeResults.appendChild(btn);
+                    });
+                    labourCodeResults.style.display = 'block';
+                  } else {
+                    labourCodeResults.innerHTML = '<div class="alert alert-warning mb-0 py-2"><small>No labour codes found</small></div>';
+                    labourCodeResults.style.display = 'block';
+                  }
+                })
+                .catch(err => {
+                  console.error('Error searching labour codes:', err);
+                  labourCodeResults.innerHTML = '<div class="alert alert-danger mb-0 py-2"><small>Error searching labour codes</small></div>';
+                  labourCodeResults.style.display = 'block';
+                });
+              }, 300);
+
+              // Select a labour code
+              function selectLabourCode(lc) {
+                labourCodeId.value = lc.id;
+                document.getElementById('labourCodeSelectedCode').textContent = lc.code;
+                document.getElementById('labourCodeSelectedName').textContent = lc.item_name || lc.description;
+                document.getElementById('labourCodeSelectedBrand').textContent = lc.brand || 'N/A';
+                labourCodeResults.style.display = 'none';
+                labourCodeSearch.value = lc.item_name || lc.description;
+                labourCodeSelected.style.display = 'block';
+              }
+
+              // Clear labour code selection
+              if (clearLabourCodeBtn) {
+                clearLabourCodeBtn.addEventListener('click', function() {
+                  labourCodeId.value = '';
+                  labourCodeSearch.value = '';
+                  labourCodeSelected.style.display = 'none';
+                  labourCodeResults.style.display = 'none';
+                });
+              }
+
+              // Add search event listener
+              if (labourCodeSearch) {
+                labourCodeSearch.addEventListener('input', searchLabourCodes);
+                labourCodeSearch.addEventListener('focus', function() {
+                  if (this.value.trim().length >= 2) {
+                    labourCodeResults.style.display = 'block';
+                  }
+                });
+              }
+
               // Handle item selection change
               editOrderItemSelect.addEventListener('change', function(e) {
                 const itemId = e.target.value;
