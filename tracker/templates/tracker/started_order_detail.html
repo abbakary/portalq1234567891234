@@ -734,9 +734,9 @@
 
                 // Update info text
                 const typeInfoMap = {
-                  'service': 'Service order - Select services to perform',
+                  'service': 'Service order - Select labour codes or services to perform',
                   'sales': 'Sales order - Select item/tire to sell',
-                  'labour': 'Labour order - Manual labor charges',
+                  'labour': 'Labour order - Select labour codes for charges',
                   'inquiry': 'Inquiry - Follow-up with customer'
                 };
                 orderTypeInfo.textContent = '✓ ' + (typeInfoMap[selectedType] || 'Select appropriate order type');
@@ -753,10 +753,19 @@
                   }
                 } else if (selectedType === 'service') {
                   itemSelectionSection.style.display = 'none';
-                  servicesLabel.textContent = 'Services';
-                  renderEditServices(allServices.service_types, 'service');
+                  servicesLabel.textContent = 'Labour Codes';
+                  renderEditLabourCodes(allServices.labour_codes, 'service');
                   servicesSection.style.display = 'block';
                   // Show inventory tab for service orders if needed
+                  if (inventoryTabItem) {
+                    inventoryTabItem.style.display = 'block';
+                  }
+                } else if (selectedType === 'labour') {
+                  itemSelectionSection.style.display = 'none';
+                  servicesLabel.textContent = 'Labour Codes';
+                  renderEditLabourCodes(allServices.labour_codes, 'labour');
+                  servicesSection.style.display = 'block';
+                  // Show inventory tab for labour orders if needed
                   if (inventoryTabItem) {
                     inventoryTabItem.style.display = 'block';
                   }
