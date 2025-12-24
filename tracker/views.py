@@ -4803,22 +4803,55 @@ def customer_delete(request: HttpRequest, pk: int):
     customer = get_object_or_404(customers_qs_del, pk=pk)
 
     if request.method == 'POST':
-        # Log the deletion before actually deleting
+        customer_name = customer.full_name
+
         try:
-            add_audit_log(
-                request.user,
-                'customer_deleted',
-                f'Deleted customer {customer.full_name} (ID: {customer.id})',
-                customer_id=customer.id
-            )
-        except Exception:
-            pass
-        
-        # Delete the customer (this will cascade to related objects)
-        customer.delete()
-        messages.success(request, f'Customer {customer.full_name} has been deleted.')
-        return redirect('tracker:customers_list')
-    
+            # Attempt to delete the customer
+            customer.delete()
+
+            # Log the deletion after successful deletion
+            try:
+                add_audit_log(
+                    request.user,
+                    'customer_deleted',
+                    f'Deleted customer {customer_name} (ID: {customer.id})',
+                    customer_id=customer.id
+                )
+            except Exception:
+                pass
+
+            messages.success(request, f'Customer {customer_name} has been successfully deleted.')
+            return redirect('tracker:customers_list')
+
+        except ProtectedError as e:
+            # Handle foreign key constraint violations
+            # Determine what's preventing deletion
+            related_objects = []
+
+            # Check for invoices (most common constraint)
+            invoice_count = customer.invoices.count()
+            if invoice_count > 0:
+                related_objects.append(f'{invoice_count} invoice{"s" if invoice_count > 1 else ""}')
+
+            # Check for orders (typically cascade, but included for clarity)
+            order_count = customer.orders.count()
+            if order_count > 0:
+                related_objects.append(f'{order_count} order{"s" if order_count > 1 else ""}')
+
+            # Check for vehicles (typically cascade, but included for clarity)
+            vehicle_count = customer.vehicles.count()
+            if vehicle_count > 0:
+                related_objects.append(f'{vehicle_count} vehicle{"s" if vehicle_count > 1 else ""}')
+
+            # Build error message
+            if related_objects:
+                error_msg = f'Cannot delete customer "{customer_name}" because they have associated data: {", ".join(related_objects)}. Please remove or reassign these records first.'
+            else:
+                error_msg = f'Cannot delete customer "{customer_name}" due to existing references. Please contact your system administrator.'
+
+            messages.error(request, error_msg)
+            return redirect('tracker:customer_detail', pk=customer.id)
+
     # If not a POST request, redirect to customer detail
     return redirect('tracker:customer_detail', pk=customer.id)
 
