@@ -1340,3 +1340,79 @@ def api_quick_stop_order(request):
     except Exception as e:
         logger.error(f"Error quick-stopping order: {e}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_lookup_labour_code(request):
+    """
+    API endpoint to lookup labour code data by item name or code.
+    Query parameters:
+      - item_name: Search by item name (iexact match)
+      - code: Search by labour code (iexact match)
+      - category: Optional category filter (labour, service, tyre service, sales, unspecified)
+
+    Returns:
+      {
+        'success': True,
+        'labour_codes': [
+          {
+            'id': id,
+            'code': code,
+            'description': description,
+            'item_name': item_name,
+            'brand': brand,
+            'quantity': quantity,
+            'tire_type': tire_type,
+            'category': category
+          }
+        ]
+      }
+    """
+    from .models import LabourCode
+
+    try:
+        item_name = request.GET.get('item_name', '').strip()
+        code = request.GET.get('code', '').strip()
+        category = request.GET.get('category', '').strip()
+
+        labour_codes = []
+
+        if code:
+            # Search by code (exact match)
+            lc = LabourCode.lookup_by_code(code)
+            if lc:
+                labour_codes = [lc]
+        elif item_name:
+            # Search by item name
+            lc = LabourCode.lookup_by_name(item_name, category if category else None)
+            if lc:
+                labour_codes = [lc]
+            else:
+                # If no exact match, search by description
+                labour_codes = list(LabourCode.search_by_description(item_name, category if category else None)[:10])
+
+        result = []
+        for lc in labour_codes:
+            result.append({
+                'id': lc.id,
+                'code': lc.code,
+                'description': lc.description,
+                'item_name': lc.item_name,
+                'brand': lc.brand,
+                'quantity': lc.quantity,
+                'tire_type': lc.tire_type,
+                'category': lc.category
+            })
+
+        return JsonResponse({
+            'success': True,
+            'labour_codes': result
+        })
+
+    except Exception as e:
+        logger.error(f"Error looking up labour code: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
