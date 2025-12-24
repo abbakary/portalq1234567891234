@@ -4894,12 +4894,21 @@ def vehicle_delete(request: HttpRequest, pk: int):
     """Delete a vehicle"""
     vehicle = get_object_or_404(Vehicle, pk=pk)
     customer_id = vehicle.customer_id
-    
+    vehicle_identifier = f"{vehicle.make} {vehicle.model}".strip() or f"Vehicle #{vehicle.plate_number}"
+
     if request.method == 'POST':
-        vehicle.delete()
-        messages.success(request, 'Vehicle deleted successfully.')
-        return redirect('tracker:customer_detail', pk=customer_id)
-    
+        try:
+            # Attempt to delete the vehicle
+            vehicle.delete()
+            messages.success(request, f'{vehicle_identifier} has been successfully deleted.')
+            return redirect('tracker:customer_detail', pk=customer_id)
+
+        except ProtectedError:
+            # Handle foreign key constraint violations
+            error_msg = f'Cannot delete {vehicle_identifier} because it is referenced by other records. Please contact your system administrator.'
+            messages.error(request, error_msg)
+            return redirect('tracker:customer_detail', pk=customer_id)
+
     return render(request, 'tracker/confirm_delete.html', {
         'object': vehicle,
         'cancel_url': reverse('tracker:customer_detail', kwargs={'pk': customer_id}),
