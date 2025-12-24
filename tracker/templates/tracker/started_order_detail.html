@@ -713,6 +713,7 @@
               // Update UI based on selected order type
               function updateOrderTypeUI() {
                 const selectedType = editOrderTypeEl.value;
+                const inventoryTabItem = document.getElementById('inventoryTabItem');
 
                 // Update info text
                 const typeInfoMap = {
@@ -729,14 +730,26 @@
                   servicesLabel.textContent = 'Add-ons';
                   renderEditServices(allServices.service_addons, 'addon');
                   servicesSection.style.display = 'block';
+                  // Hide Inventory tab for sales orders - use Labour Code or Manual Entry instead
+                  if (inventoryTabItem) {
+                    inventoryTabItem.style.display = 'none';
+                  }
                 } else if (selectedType === 'service') {
                   itemSelectionSection.style.display = 'none';
                   servicesLabel.textContent = 'Services';
                   renderEditServices(allServices.service_types, 'service');
                   servicesSection.style.display = 'block';
+                  // Show inventory tab for service orders if needed
+                  if (inventoryTabItem) {
+                    inventoryTabItem.style.display = 'block';
+                  }
                 } else {
                   itemSelectionSection.style.display = 'none';
                   servicesSection.style.display = 'none';
+                  // Show inventory tab for other order types
+                  if (inventoryTabItem) {
+                    inventoryTabItem.style.display = 'block';
+                  }
                 }
               }
 
