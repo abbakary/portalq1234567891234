@@ -564,7 +564,9 @@ def started_order_detail(request, order_id):
                 # Redirect to dashboard after updating order details
                 return redirect('tracker:started_orders_dashboard')
             except Exception as e:
-                logger.error(f"Error updating order details: {e}")
+                logger.error(f"Error updating order details: {e}", exc_info=True)
+                messages.error(request, f'Error updating order details: {str(e)}')
+                return redirect('tracker:started_order_detail', order_id=order.id)
 
         
         elif action == 'complete_order':
