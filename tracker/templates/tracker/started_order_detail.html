@@ -25,33 +25,45 @@
     </div>
   </div>
 
-  <!-- Status Bar -->
+  <!-- Status Bar - Enhanced -->
   <div class="row g-3 mb-4">
     <div class="col-12">
-      <div class="card shadow-sm border-left border-4" style="border-left-color: #667eea;">
-        <div class="card-body py-3">
-          <div class="row align-items-center">
+      <div class="card shadow-sm" style="border-left: 4px solid #667eea; border-radius: 8px; overflow: hidden;">
+        <div class="card-body py-4">
+          <div class="row align-items-center g-3">
             <div class="col-md-6">
-              <p class="mb-2"><strong>Status:</strong> <span class="badge bg-secondary">Started</span></p>
-              <p class="mb-0"><strong>Started:</strong> <span class="text-muted">{{ order.started_at|date:"M d, Y H:i" }}</span></p>
+              <div class="d-flex align-items-center gap-3">
+                <div style="font-size: 1.5rem; color: #667eea;">
+                  <i class="fa fa-clock"></i>
+                </div>
+                <div>
+                  <small class="text-muted d-block">Order Status</small>
+                  <p class="mb-1"><strong>Started</strong> <span class="badge bg-secondary ms-2">In Progress</span></p>
+                  <small class="text-muted"><i class="fa fa-calendar me-1"></i>{{ order.started_at|date:"M d, Y H:i" }}</small>
+                </div>
+              </div>
             </div>
             <div class="col-md-6 text-md-end">
-              <p class="mb-2"><strong>Type:</strong>
-                {% if order.type == 'service' %}
-                  <span class="badge bg-primary"><i class="fa fa-wrench me-1"></i>Service</span>
-                {% elif order.type == 'sales' %}
-                  <span class="badge bg-success"><i class="fa fa-shopping-cart me-1"></i>Sales</span>
-                {% elif order.type == 'labour' %}
-                  <span class="badge bg-info"><i class="fa fa-tools me-1"></i>Labour</span>
-                {% elif order.type == 'mixed' %}
-                  <span class="badge bg-dark"><i class="fa fa-layer-group me-1"></i>Mixed</span>
-                {% elif order.type == 'unspecified' %}
-                  <span class="badge bg-secondary"><i class="fa fa-question me-1"></i>Unspecified</span>
-                {% else %}
-                  <span class="badge bg-secondary">{{ order.type }}</span>
-                {% endif %}
-              </p>
-              <p class="mb-0"><strong>Progress:</strong> <span class="text-muted">Step 1 of 3</span></p>
+              <div class="d-flex align-items-center justify-content-md-end gap-3">
+                <div style="text-align: right;">
+                  <small class="text-muted d-block">Order Type</small>
+                  <p class="mb-0">
+                    {% if order.type == 'service' %}
+                      <span class="badge bg-primary"><i class="fa fa-wrench me-1"></i>Service</span>
+                    {% elif order.type == 'sales' %}
+                      <span class="badge bg-success"><i class="fa fa-shopping-cart me-1"></i>Sales</span>
+                    {% elif order.type == 'labour' %}
+                      <span class="badge bg-info"><i class="fa fa-tools me-1"></i>Labour</span>
+                    {% elif order.type == 'mixed' %}
+                      <span class="badge bg-dark"><i class="fa fa-layer-group me-1"></i>Mixed</span>
+                    {% elif order.type == 'unspecified' %}
+                      <span class="badge bg-secondary"><i class="fa fa-question me-1"></i>Unspecified</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ order.type }}</span>
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
