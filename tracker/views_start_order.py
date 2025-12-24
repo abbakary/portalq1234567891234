@@ -1148,12 +1148,39 @@ def api_create_order_from_modal(request):
                 except Exception as e:
                     logger.warning(f"Failed to create invoice from upload: {e}")
 
+        # Build detailed success message with order summary
+        summary_parts = [f"Order #{order.order_number} created successfully"]
+
+        if order_type == 'service':
+            service_list = request.POST.getlist('service_selection')
+            if service_list:
+                summary_parts.append(f"Services: {', '.join(service_list)}")
+            if final_est_duration:
+                summary_parts.append(f"Est. Duration: {final_est_duration} minutes")
+        elif order_type == 'sales':
+            if request.POST.get('item_name'):
+                item_info = request.POST.get('item_name')
+                if request.POST.get('brand'):
+                    item_info += f" ({request.POST.get('brand')})"
+                if request.POST.get('quantity'):
+                    item_info += f" × {request.POST.get('quantity')}"
+                summary_parts.append(f"Item: {item_info}")
+            if final_est_duration:
+                summary_parts.append(f"Est. Duration: {final_est_duration} minutes")
+        elif order_type == 'inquiry':
+            if request.POST.get('inquiry_type'):
+                summary_parts.append(f"Inquiry Type: {request.POST.get('inquiry_type')}")
+            if request.POST.get('contact_preference'):
+                summary_parts.append(f"Contact: {request.POST.get('contact_preference')}")
+
         # Return success response
         return JsonResponse({
             'success': True,
-            'message': 'Order created successfully',
+            'message': ' • '.join(summary_parts),
             'order_id': order.id,
             'order_number': order.order_number,
+            'order_type': order_type,
+            'summary': summary_parts,
             'redirect_url': f'/tracker/orders/started/{order.id}/'
         }, status=201)
 
