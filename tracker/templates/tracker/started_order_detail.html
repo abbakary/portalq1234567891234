@@ -1587,6 +1587,18 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   } catch (e) {}
+
+  // Upload Invoice Button Handler
+  const uploadInvoiceBtn = document.getElementById('uploadInvoiceBtn');
+  const uploadInvoiceModal = document.getElementById('uploadInvoiceModal');
+
+  if (uploadInvoiceBtn && uploadInvoiceModal) {
+    const modal = new bootstrap.Modal(uploadInvoiceModal);
+    uploadInvoiceBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      modal.show();
+    });
+  }
 });
 </script>
 
