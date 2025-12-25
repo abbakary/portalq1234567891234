@@ -638,7 +638,14 @@ def started_order_detail(request, order_id):
 
             messages.success(request, 'Order completed successfully.')
             return redirect('tracker:started_orders_dashboard')
-    
+
+        else:
+            # Unknown action or no action provided
+            if action:
+                logger.warning(f"Unknown action '{action}' for order {order.id}")
+                messages.warning(request, f'Unknown action: {action}')
+            return redirect('tracker:started_order_detail', order_id=order.id)
+
     active_tab = request.GET.get('tab', 'overview')
 
     # Check if order exceeds 2+ hours
