@@ -435,6 +435,8 @@ def started_order_detail(request, order_id):
                 order.vehicle.model = request.POST.get('model', order.vehicle.model)
                 order.vehicle.vehicle_type = request.POST.get('vehicle_type', order.vehicle.vehicle_type)
                 order.vehicle.save()
+            messages.success(request, 'Vehicle information updated successfully.')
+            return redirect('tracker:started_order_detail', order_id=order.id)
 
         elif action == 'update_order_details':
             # Update selected services, add-ons, items, estimated duration, and order type
