@@ -418,16 +418,23 @@ def started_order_detail(request, order_id):
 
         if action == 'update_customer':
             # Update customer details
-            order.customer.full_name = request.POST.get('full_name', order.customer.full_name)
-            order.customer.phone = request.POST.get('phone', order.customer.phone)
-            order.customer.email = request.POST.get('email', order.customer.email) or None
-            order.customer.address = request.POST.get('address', order.customer.address) or None
-            order.customer.customer_type = request.POST.get('customer_type', order.customer.customer_type)
-            personal_subtype = request.POST.get('personal_subtype', '').strip()
-            if personal_subtype:
-                order.customer.personal_subtype = personal_subtype
-            order.customer.save()
-            
+            try:
+                order.customer.full_name = request.POST.get('full_name', order.customer.full_name)
+                order.customer.phone = request.POST.get('phone', order.customer.phone)
+                order.customer.email = request.POST.get('email', order.customer.email) or None
+                order.customer.address = request.POST.get('address', order.customer.address) or None
+                order.customer.customer_type = request.POST.get('customer_type', order.customer.customer_type)
+                personal_subtype = request.POST.get('personal_subtype', '').strip()
+                if personal_subtype:
+                    order.customer.personal_subtype = personal_subtype
+                order.customer.save()
+                messages.success(request, 'Customer information updated successfully.')
+                logger.info(f"Customer {order.customer.id} updated for order {order.id}")
+            except Exception as e:
+                logger.error(f"Error updating customer for order {order.id}: {e}", exc_info=True)
+                messages.error(request, f'Error updating customer: {str(e)}')
+            return redirect('tracker:started_order_detail', order_id=order.id)
+
         elif action == 'update_vehicle':
             # Update vehicle details
             if order.vehicle:
