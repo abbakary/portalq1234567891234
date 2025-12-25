@@ -1254,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const formData = new FormData(this);
       const submitBtn = this.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
-      const formAction = this.action;
+      const formAction = this.getAttribute('action');
 
       // Log for debugging
       console.log('Form Action URL:', formAction);
