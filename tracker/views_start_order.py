@@ -668,16 +668,22 @@ def started_order_detail(request, order_id):
 
     # Fetch delay reason categories and reasons for template rendering
     delay_reasons_by_category = {}
+    import json
     try:
         from .models import DelayReasonCategory, DelayReason
         for category in DelayReasonCategory.objects.filter(is_active=True):
             reasons = list(DelayReason.objects.filter(category=category, is_active=True).values('id', 'reason_text'))
             delay_reasons_by_category[category.category] = reasons
-        # Convert to JSON string for template
-        import json
+    except Exception as e:
+        logger.warning(f"Error fetching delay reasons: {e}")
+        delay_reasons_by_category = {}
+
+    # Always convert to JSON string for template rendering
+    try:
         delay_reasons_for_template = json.dumps(delay_reasons_by_category)
-    except Exception:
-        delay_reasons_for_template = delay_reasons_by_category
+    except Exception as e:
+        logger.error(f"Error converting delay reasons to JSON: {e}")
+        delay_reasons_for_template = "{}"
 
     context = {
         'order': order,
