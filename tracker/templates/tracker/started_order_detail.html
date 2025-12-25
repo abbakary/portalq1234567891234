@@ -1256,17 +1256,32 @@ document.addEventListener('DOMContentLoaded', function(){
       const originalText = submitBtn.innerHTML;
       const formAction = this.action;
 
-      console.log('Submitting form to:', formAction);
-      console.log('Form data includes action:', formData.get('action'));
+      // Log for debugging
+      console.log('Form Action URL:', formAction);
+      console.log('Form Method:', this.method);
+      console.log('Form has action field:', formData.get('action'));
+      console.log('Form has csrf token:', !!formData.get('csrfmiddlewaretoken'));
+
+      // Debug: Show all form fields
+      console.log('All form fields:');
+      for (let [key, value] of formData.entries()) {
+        if (key !== 'csrfmiddlewaretoken') {  // Don't log CSRF token for security
+          console.log(`  ${key}: ${typeof value === 'string' ? value.substring(0, 50) : 'File/Blob'}`);
+        }
+      }
 
       submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Saving...';
       submitBtn.disabled = true;
+
+      // Get CSRF token for explicit inclusion
+      const csrfToken = document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '';
 
       fetch(formAction, {
         method: 'POST',
         body: formData,
         headers: {
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
         }
       })
       .then(r => {
